@@ -8,8 +8,8 @@ JOINT_LIMITS_MIN = np.deg2rad([-360] * NUM_JOINTS)
 JOINT_LIMITS_MAX = np.deg2rad([ 360] * NUM_JOINTS)
 
 # --- Planner Configuration ---
-PLANNING_TIME_LIMIT = 0.03 # Default planning time limit (seconds) - CHANGED
-GD_EVAL_PLANNING_TIME_LIMIT = 0.01 # Time limit for GD evaluations (seconds) - ADJUSTED
+PLANNING_TIME_LIMIT = 0.3 # Default planning time limit (seconds) - CHANGED
+GD_EVAL_PLANNING_TIME_LIMIT = 0.4 # Time limit for GD evaluations (seconds) - ADJUSTED
 INTERPOLATE_PATH_POINTS = 50 # Number of points to interpolate path for execution/visualization density
 OMPL_AVAILABLE = False # Will be set to True if import succeeds in planner.py
 
@@ -24,7 +24,7 @@ VIS_TCP_FRAME_SIZE = 0.1
 PERTURB_MIN_DEG = -10
 PERTURB_MAX_DEG = 10
 # Default intervals for defining task space sets around a center pose
-DEFAULT_POS_INTERVAL = [0.05] * 3 # meters [dx, dy, dz]
+DEFAULT_POS_INTERVAL = [0.2] * 3 # meters [dx, dy, dz]
 DEFAULT_ROT_INTERVAL = 0.1       # radians (approx tolerance around center orientation - simplistic)
 
 # --- OMPL Cost/Objective Function Weights (Placeholders) ---
@@ -41,12 +41,21 @@ NUM_SAMPLES_S1 = 1 # Number of random target candidates in Set 1 (Increased slig
 ENABLE_GD_REFINEMENT = True # Set to False to skip GD step
 GD_ITERATIONS = 200          # Max number of GD steps
 GD_STEP_SIZE = 0.01        # Learning rate for position update (Keep small for now)
-GD_TOLERANCE = 1e-5         # Stop GD if cost improvement is less than this
-GD_EPSILON = 0.005         # Perturbation distance for numerical gradient
+GD_TOLERANCE = 1e-10         # Stop GD if cost improvement is less than this
+GD_EPSILON = 0.0001        # Perturbation distance for numerical gradient
 
 # --- NEW: Gradient Clipping ---
 GD_ENABLE_CLIPPING = True   # Enable/disable gradient clipping
 GD_MAX_GRAD_NORM = 50000000000000.0   # Maximum allowed norm for the gradient (prevent huge steps) - ADJUST AS NEEDED
+# --- NEW: Dimension-Specific Step Sizes ---
+# Adjust these values based on experimentation. Rotation often needs smaller steps.
+# Order: [x, y, z]
+coef_pos_rot = 0.7
+coef_rot = 1
+coef_pos = 1
+GD_STEP_SIZES_POS = coef_pos_rot*coef_pos*np.array([0.01, 0.01, 0.01])
+# Order: [w, qx, qy, qz] (Matching gradient_7d[3:])
+GD_STEP_SIZES_ROT = coef_pos_rot*coef_rot*np.array([0.05, 0.05, 0.05, 0.05])
 
 # --- TODO: Adaptive Step Size Parameters ---
 # GD_ENABLE_ADAPTIVE_STEP = False

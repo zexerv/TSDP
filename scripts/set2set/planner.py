@@ -89,7 +89,7 @@ class OMPLPlanner:
         # For now, let RRT* use its default path length objective.
         return None
 
-    def plan(self, q_start_np, q_goal_np, planner_type="RRTstar", time_limit=None):
+    def plan(self, q_start_np, q_goal_np, planner_type="RRTConnect", time_limit=None):
         """
         Plans a path from q_start to q_goal using the specified OMPL planner.
         Uses the provided time_limit, falling back to the global config if None.
