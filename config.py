@@ -1,11 +1,18 @@
+# -*- coding: utf-8 -*-
+"""
+Configuration file for the segdp trajectory segmentation and analysis pipeline.
+"""
+
+import os
 import numpy as np
+import re # Import regex module
 
 # ==============================================================================
 # FILE PATHS & LOADING
 # Keywords: data, input, csv, loading
 # ==============================================================================
 # Absolute path to the parent directory containing subfolders like 'button', 'lever', etc.
-PARENT_FOLDER_PATH = '/home/kadi/Desktop/Thesis/demo_processor_new/data/reorganized_data/linear_switch'
+PARENT_FOLDER_PATH = '/home/kadi/Desktop/Thesis/demo_processor_new/data/reorganized_data/linear_button'
 # Load all CSV files found in PARENT_FOLDER_PATH if True, otherwise load from FILE_LIST.
 LOAD_ALL_FILES = True
 # Explicit list of filenames (relative to PARENT_FOLDER_PATH) to load if LOAD_ALL_FILES is False.
@@ -29,7 +36,7 @@ ALIGNMENT_DERIVATIVE_WEIGHT = 1.0
 # --- Alignment Method Selection ---
 # If True, use fastdtw library (approximate, faster, no event penalties).
 # If False, use manual DTW implementation (exact, slower, allows event penalties).
-USE_FASTDTW_APPROXIMATION = True
+USE_FASTDTW_APPROXIMATION = True # Set to False to use manual DTW with penalties
 
 # --- Event Penalties (Only used if USE_FASTDTW_APPROXIMATION = False) ---
 # Penalty added to DTW cost for aligning a state_change event with a non-state_change point.
@@ -56,6 +63,7 @@ WAYPOINT_PRESENCE_THRESHOLD = 0.8
 # Keywords: segmentation, dynamic programming, cost, segments, tube, events
 # ==============================================================================
 # Features used to define the tube boundaries for segmentation cost calculation.
+# Ensure this includes position and rotation matrix columns if needed for tube viz
 SEGMENTATION_FEATURE_COLS = ['tx', 'ty', 'tz', 'r11','r12','r13','r21','r22','r23','r31','r32','r33']
 # Maximum number of segments to consider in the dynamic programming optimization.
 MAX_SEGMENTS = 10
@@ -86,9 +94,13 @@ MAX_DP_LENGTH = 300
 EVENT_COLUMNS = {
     'wp_saved': 'WP_Saved',
     'gripper': 'GripperState',
+    # 'state_change' is derived dynamically using interface_id and TCA columns
 }
 # Features considered 'position' for weighting purposes.
 POS_COLS = ['tx', 'ty', 'tz']
+# Columns representing the raw orientation (used for conversion and analysis)
+# Assuming 3x3 Rotation Matrix format based on previous context
+ROT_MAT_COLS = ['r11', 'r12', 'r13', 'r21', 'r22', 'r23', 'r31', 'r32', 'r33']
 # Threshold for detecting significant lever movement in find_events.
 LEVER_CHANGE_THRESHOLD = 0.001
 # List of ALL potential TCA columns that might appear in ANY CSV file.
@@ -109,63 +121,111 @@ ALL_TCA_COLS_TO_LOAD = [
 ]
 
 # ==============================================================================
+# GMM CROSS-SECTION ANALYSIS
+# Keywords: gmm, analysis, cross-section, boundary, event, statistics
+# ==============================================================================
+# State vector components for GMM training at cross-sections: [pos, orient_log_map]
+GMM_POS_COLS = ['tx', 'ty', 'tz'] # Position columns
+GMM_ORIENT_LOG_MAP_COLS = ['vx_log', 'vy_log', 'vz_log'] # Log map columns (will be added LATER)
+GMM_STATE_COLS = GMM_POS_COLS + GMM_ORIENT_LOG_MAP_COLS # Combined state vector
+
+# Number of components for the GMM trained at each cross-section.
+# This acts as an upper limit; the actual number used will be min(GMM_N_COMPONENTS, n_snapshots)
+GMM_N_COMPONENTS = 3 # Example value, tune based on data complexity and N trajectories
+
+# Flag to enable analysis of event-based cross-sections (average time of events within a segment).
+ANALYZE_EVENT_CROSS_SECTIONS = True # Set to False to only analyze DP boundaries
+
+# Event types from mapped_events_list to consider for event-based cross-sections.
+# Uses keys from the dictionary returned by find_events/map_events.
+EVENTS_FOR_CROSS_SECTIONS = ['state_change', 'wp_saved', 'gripper_change']
+
+# Absolute path for saving the cross-section GMM analysis results (YAML format recommended).
+CROSS_SECTION_STATS_OUTPUT_PATH = '/home/kadi/Desktop/Thesis/demo_processor_new/results/cross_section_stats.yaml' # CHANGE AS NEEDED
+
+# ==============================================================================
+# BACKUP GLOBAL GMM ANALYSIS
+# Keywords: gmm, backup, global, trajectory, time
+# ==============================================================================
+# Flag to enable the backup analysis: training a single GMM on all (z(t), t) data.
+RUN_BACKUP_GLOBAL_GMM = True
+
+# Number of components for the backup global GMM.
+BACKUP_GMM_N_COMPONENTS = 5 # Example value
+
+# Absolute path for saving the backup global GMM parameters (YAML format recommended).
+BACKUP_GMM_OUTPUT_PATH = '/home/kadi/Desktop/Thesis/demo_processor_new/results/backup_global_gmm.yaml' # CHANGE AS NEEDED
+
+
+# ==============================================================================
 # VISUALIZATION
 # Keywords: plot, visualization, output, figures
 # ==============================================================================
 # Number of columns in the multi-plot grid for segmentation results.
-PLOT_GRID_COLUMNS = 3
+PLOT_GRID_COLUMNS = 3 # Adjust based on number of features plotted
 # Font family for matplotlib plots.
 PLOT_FONT = 'serif'
+# Features to include in the main segmentation plot
+# This list dictates which subplots are generated. Include derived columns like 'vx_log' here.
+PLOT_FEATURE_COLS = ['tx', 'ty', 'tz', 'vx_log', 'vy_log', 'vz_log'] # Example: Pos + LogMap
+# PLOT_FEATURE_COLS = ['tx', 'ty', 'tz', 'r11','r12','r13','r21','r22','r23','r31','r32','r33'] # Example: Pos + RotMat
+# PLOT_FEATURE_COLS = ['tx', 'ty', 'tz'] # Example: Position only
+
+# Flag to enable the additional plot showing geodesic distance from mean orientation.
+PLOT_ORIENTATION_DEVIATION = True # Requires SciPy
 
 # ==============================================================================
 # DERIVED CONFIGURATION (Internal - Do Not Modify Manually)
 # ==============================================================================
 # --- Columns to Load ---
-# Combines features needed for alignment, segmentation, basic events, interface_id, and all TCA columns.
+# Defines columns to be loaded from the initial CSV files.
+# Combines features needed for alignment, segmentation (if loadable), basic events,
+# interface_id, raw orientation, and all TCA columns.
 _alignment_features = set(ALIGNMENT_BASE_FEATURE_COLS)
-_segmentation_features = set(SEGMENTATION_FEATURE_COLS)
+# Include segmentation features ONLY if they are expected in the raw data
+# (e.g., tx, ty, tz, r11..r33 are usually raw data)
+_segmentation_features_loadable = set(f for f in SEGMENTATION_FEATURE_COLS if f not in GMM_ORIENT_LOG_MAP_COLS) # Exclude derived log maps
 _basic_event_cols = set(col for col in EVENT_COLUMNS.values() if isinstance(col, str))
 _tca_cols = set(ALL_TCA_COLS_TO_LOAD)
 _required_misc_cols = set(['interface_id'])
+_raw_orientation_cols = set(ROT_MAT_COLS)
 
-ALL_LOAD_COLS = list(
+# Define the list of columns to ACTUALLY load from CSV
+ALL_LOAD_COLS = sorted(list(
     _alignment_features |
-    _segmentation_features |
+    _segmentation_features_loadable | # Only loadable segmentation features
     _basic_event_cols |
     _tca_cols |
-    _required_misc_cols
-)
-# ==============================================================================
-# OUTPUT FILES
-# Keywords: output, results, analysis, statistics
-# ==============================================================================
-# Absolute path for saving the calculated segment statistics file (e.g., Yaml, JSON format).
-SEGMENT_STATS_OUTPUT_PATH = '/home/kadi/Desktop/Thesis/demo_processor_new/results/segment_stats.yaml' # CHANGE AS NEEDED
+    _required_misc_cols |
+    _raw_orientation_cols
+))
 
-# Add a print statement for it too if you like:
-print(f"SEGMENT_STATS_OUTPUT_PATH: {SEGMENT_STATS_OUTPUT_PATH}")
+# NOTE: PLOT_FEATURE_COLS might contain derived columns (like vx_log).
+#       These derived columns are NOT loaded here but are expected to be created
+#       during preprocessing in segment_analyzer.py before plotting.
+#       The plotting function will use the 'processed_aligned_trajs' which HAVE these columns.
+#       The tube calculation for plotting must also use 'processed_aligned_trajs'.
 
 # --- Print Loaded Configuration ---
 print("--- Configuration Loaded ---")
 print(f"PARENT_FOLDER_PATH: {PARENT_FOLDER_PATH}")
 print(f"LOAD_ALL_FILES: {LOAD_ALL_FILES}")
 print(f"ALIGNMENT_TYPE: {ALIGNMENT_TYPE}")
-print(f"ALIGNMENT_BASE_FEATURE_COLS: {ALIGNMENT_BASE_FEATURE_COLS}")
 print(f"USE_FASTDTW_APPROXIMATION: {USE_FASTDTW_APPROXIMATION}")
-if not USE_FASTDTW_APPROXIMATION:
-    print(f"  ALIGNMENT_STATE_CHANGE_PENALTY: {ALIGNMENT_STATE_CHANGE_PENALTY}")
-    print(f"  ALIGNMENT_PRE_WP1_PENALTY: {ALIGNMENT_PRE_WP1_PENALTY}")
-    print(f"  ALIGNMENT_POST_WP1_PENALTY: {ALIGNMENT_POST_WP1_PENALTY}")
-    print(f"  ALIGNMENT_PRE_WP2_PENALTY: {ALIGNMENT_PRE_WP2_PENALTY}")
-    print(f"  ALIGNMENT_POST_WP2_PENALTY: {ALIGNMENT_POST_WP2_PENALTY}")
-    print(f"  ALIGNMENT_PRE_GRIPPER1_PENALTY: {ALIGNMENT_PRE_GRIPPER1_PENALTY}")
-    print(f"  ALIGNMENT_POST_GRIPPER1_PENALTY: {ALIGNMENT_POST_GRIPPER1_PENALTY}")
-    print(f"  WAYPOINT_PRESENCE_THRESHOLD: {WAYPOINT_PRESENCE_THRESHOLD}")
 print(f"SEGMENTATION_FEATURE_COLS: {SEGMENTATION_FEATURE_COLS}")
 print(f"MAX_SEGMENTS: {MAX_SEGMENTS}")
 print(f"LAMBDA_PENALTY: {LAMBDA_PENALTY}")
-print(f"SEGMENTATION_EVENT_COOCCURRENCE_PENALTY: {SEGMENTATION_EVENT_COOCCURRENCE_PENALTY}")
 print(f"MAX_DP_LENGTH: {MAX_DP_LENGTH}")
-print(f"Columns To Load: {sorted(ALL_LOAD_COLS)}")
+print(f"ROT_MAT_COLS: {ROT_MAT_COLS}")
+print(f"GMM_STATE_COLS: {GMM_STATE_COLS}")
+print(f"GMM_N_COMPONENTS: {GMM_N_COMPONENTS}")
+print(f"ANALYZE_EVENT_CROSS_SECTIONS: {ANALYZE_EVENT_CROSS_SECTIONS}")
+print(f"EVENTS_FOR_CROSS_SECTIONS: {EVENTS_FOR_CROSS_SECTIONS}")
+print(f"CROSS_SECTION_STATS_OUTPUT_PATH: {CROSS_SECTION_STATS_OUTPUT_PATH}")
+print(f"RUN_BACKUP_GLOBAL_GMM: {RUN_BACKUP_GLOBAL_GMM}")
+print(f"BACKUP_GMM_N_COMPONENTS: {BACKUP_GMM_N_COMPONENTS}")
+print(f"BACKUP_GMM_OUTPUT_PATH: {BACKUP_GMM_OUTPUT_PATH}")
+print(f"PLOT_FEATURE_COLS: {PLOT_FEATURE_COLS}")
+print(f"PLOT_ORIENTATION_DEVIATION: {PLOT_ORIENTATION_DEVIATION}")
+print(f"Columns To Load (Unique, Sorted): {sorted(list(set(ALL_LOAD_COLS)))}") # Show the actual load list
 print("-" * 25)
-
