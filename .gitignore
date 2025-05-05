@@ -1,0 +1,9 @@
+airbus_project/
+data/
+ompl_planner_comparison.png
+optimization_final_costs.png
+report.log
+scripts/hmm/
+scripts/rrt/
+scripts/set2set/report.log
+scripts/test_gmm_staright/
