@@ -205,7 +205,7 @@ if config.OMPL_AVAILABLE:
                     multi_obj.addObjective(obj, weight)
                 return multi_obj
 
-        def plan(self, q_start_np, q_goal_np, planner_type="RRTConnect", time_limit=None):
+        def plan(self, q_start_np, q_goal_np, planner_type="RRTstar", time_limit=None):
             """ Plans a path using the configured objective stored in self.objective. """
             if not config.OMPL_AVAILABLE or self.si is None or self.objective is None:
                 print("Error: OMPL not available, SI not setup, or Objective not created.")
