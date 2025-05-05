@@ -7,3 +7,15 @@ scripts/hmm/
 scripts/rrt/
 scripts/set2set/report.log
 scripts/test_gmm_staright/
+scripts/set2set/__pycache__/config.cpython-310.pyc
+scripts/set2set/__pycache__/optimization.cpython-310.pyc
+scripts/set2set/__pycache__/planner.cpython-310.pyc
+scripts/set2set/__pycache__/utils.cpython-310.pyc
+scripts/set2set/__pycache__/visualizer.cpython-310.pyc
+scripts/setset/__pycache__/config.cpython-310.pyc
+scripts/setset/__pycache__/optimization.cpython-310.pyc
+scripts/setset/__pycache__/planner.cpython-310.pyc
+scripts/setset/__pycache__/utils.cpython-310.pyc
+scripts/setset/__pycache__/visualizer.cpython-310.pyc
+results/
+scripts/segdp/
