@@ -11,11 +11,11 @@ OMPL_AVAILABLE = False # Will be set to True if import succeeds in planner.py
 
 # --- OMPL Cost/Objective Function Weights ---
 WEIGHT_PATH_LENGTH = 1.0
-WEIGHT_MANIPULABILITY = 100 # Set > 0 to enable, Tune
+WEIGHT_MANIPULABILITY = 0.0 # Set > 0 to enable, Tune
 # WEIGHT_JLIM_OBJECTIVE = 0.0 # Example
 
 # --- Manipulability Objective Parameters ---
-MANIPULABILITY_EPSILON = 1e-10
+MANIPULABILITY_EPSILON = 1e-6
 MAX_MANIPULABILITY_COST = 1e8
 
 # --- IK Solution Selection Criteria Weights ---
@@ -46,22 +46,21 @@ PSO_EVAL_PLANNING_TIME_LIMIT = 0.01
 
 # --- Gradient Descent Configuration ---
 ENABLE_GD_REFINEMENT = True # Used if OPTIMIZATION_ALGORITHM="GD"
-GD_ITERATIONS = 40 # Reduced iterations maybe for multi-segment
+GD_ITERATIONS = 50 # Reduced iterations maybe for multi-segment
 GD_TOLERANCE = 1e-5
 GD_EPSILON = 0.005
-c = 0.01
-GD_STEP_SIZES_POS = c*np.array([0.001, 0.001, 0.001])
-GD_STEP_SIZES_ROT = c*np.array([0.005, 0.005, 0.005, 0.005])
-GD_ENABLE_CLIPPING = False
+GD_STEP_SIZES_POS = np.array([0.001, 0.001, 0.001])
+GD_STEP_SIZES_ROT = np.array([0.005, 0.005, 0.005, 0.005])
+GD_ENABLE_CLIPPING = True
 GD_MAX_GRAD_NORM = 1e6
 
 # --- PSO Configuration ---
-PSO_N_PARTICLES = 3 # Reduced particles maybe
-PSO_ITERATIONS = 10  # Reduced iterations maybe
+PSO_N_PARTICLES = 25 # Reduced particles maybe
+PSO_ITERATIONS = 30  # Reduced iterations maybe
 PSO_OPTIONS = {'c1': 0.5, 'c2': 0.3, 'w': 0.9}
 
 # --- Multi-Segment Configuration ---
-NUM_PLANNING_SEGMENTS = 2 # Number of segments to plan (q0->S1*, q1*->S2*, ...)
+NUM_PLANNING_SEGMENTS = 3 # Number of segments to plan (q0->S1*, q1*->S2*, ...)
 
 # List defining parameters for each target set
 # Ensure length >= NUM_PLANNING_SEGMENTS
@@ -76,7 +75,7 @@ TARGET_SET_DEFINITIONS = [
         'pos_interval_m': [0.05] * 3, # [dx, dy, dz] relative to center
         'rot_interval_rad': 0.1,     # Approx rot tolerance
         'num_samples': 50,           # Number of samples for this segment
-        'segment_planning_time_limit': 0.5 # Planning time limit for sampling evals in this segment
+        'segment_planning_time_limit': 0.03 # Planning time limit for sampling evals in this segment
     },
     # Set 2 (S2) Parameters
     {
@@ -88,7 +87,7 @@ TARGET_SET_DEFINITIONS = [
         'pos_interval_m': [0.08] * 3,
         'rot_interval_rad': 0.15,
         'num_samples': 50, # Can vary per segment
-        'segment_planning_time_limit': 0.5
+        'segment_planning_time_limit': 0.03
     },
     # Set 3 (S3) Parameters
     {
@@ -98,7 +97,7 @@ TARGET_SET_DEFINITIONS = [
         'perturb_min_deg': -5,
         'perturb_max_deg': 5,
         'pos_interval_m': [0.03] * 3,
-        'rot_interval_rad': 0.5,
+        'rot_interval_rad': 0.05,
         'num_samples': 50,
         'segment_planning_time_limit': 0.03
     },

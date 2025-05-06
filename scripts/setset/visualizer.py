@@ -437,6 +437,7 @@ def plot_gmm_optimization_details(opt_info: dict, gmm_params: dict, branch_tuple
     exp_map_available = callable(_exp_map_so3_func)
     if not exp_map_available:
          print(f"Warning: Cannot plot GMM optimization details for Boundary {boundary_index+1}, Branch {branch_tuple}. Exp map function unavailable.")
+         print(f"Warning: Cannot plot GMM optimization details for Boundary {boundary_index+1}, Branch {branch_tuple}. Exp map function unavailable.")
          return
 
     if not opt_info: print("Warning: No optimization info provided to plot."); return
