@@ -1,0 +1,2 @@
+Experiment_ID,Resolution_Factor,N_prime,D_prime,Lambda,PELT_Runtime_s,Num_Segments,F_N_prime_Cost,Max_R_Candidates_Size,R_Profile,Optimal_Endpoints_Count
+MD_Exp1_Res1_Lambda0.010,1,2359,12,0.01,0.9276998043060303,9,3.89522420642344,2,"{'start_R_size': 2, 'mid_R_size': 2, 'end_R_size': 2}",10
